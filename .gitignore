@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual env
+backend/.venv/
+venv/
+
+# Dataset
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Torch cache
+*.ptc
+*.pth
+
+# logs
+*.log
+
+# large temporary
+*.tar.gz
