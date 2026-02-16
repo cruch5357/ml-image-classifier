@@ -13,7 +13,7 @@ CLASSES = [
     "dog","frog","horse","ship","truck"
 ]
 
-MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "model.pt"
+MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "model.pt"
 
 # Preprocess compatible con CIFAR-10 (32x32)
 _preprocess = transforms.Compose([
