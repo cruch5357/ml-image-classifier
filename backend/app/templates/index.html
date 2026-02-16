@@ -4,14 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ML Image Classifier</title>
+  <link rel="icon" href="/static/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- ✅ app.js primero para que Alpine encuentre classifierApp() al inicializar -->
   <script src="/static/app.js"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
 <body class="min-h-screen bg-zinc-950 text-zinc-100">
-  <div class="max-w-4xl mx-auto px-4 py-10" x-data="classifierApp()">
+  <div class="max-w-5xl mx-auto px-4 py-10" x-data="classifierApp()">
     <header class="mb-8">
       <h1 class="text-3xl font-bold tracking-tight">ML Image Classifier</h1>
       <p class="text-zinc-300 mt-2">
@@ -19,13 +21,13 @@
       </p>
     </header>
 
-    <div class="grid md:grid-cols-2 gap-6">
+    <div class="grid lg:grid-cols-2 gap-6">
       <!-- Upload -->
       <section class="rounded-2xl bg-zinc-900/60 border border-zinc-800 p-5">
         <h2 class="font-semibold mb-3">Subir imagen</h2>
 
         <label class="block">
-          <input type="file" accept="image/*" class="hidden" @change="pick($event)" />
+          <input id="fileInput" type="file" accept="image/*" class="hidden" @change="pick($event)" />
           <div
             class="cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-6 text-center hover:border-zinc-500 transition"
             @click="$el.previousElementSibling.click()"
@@ -37,8 +39,15 @@
           </div>
         </label>
 
+        <!-- File info -->
+        <div class="mt-3 text-xs text-zinc-300" x-show="selectedFile">
+          <span class="font-semibold" x-text="selectedFile?.name"></span>
+          <span class="opacity-70" x-text="selectedFile ? ` • ${(selectedFile.size/1024).toFixed(1)} KB` : ''"></span>
+        </div>
+
+        <!-- Preview -->
         <template x-if="previewUrl">
-          <div class="mt-5">
+          <div class="mt-4">
             <p class="text-sm text-zinc-400 mb-2">Preview</p>
             <img :src="previewUrl" class="w-full rounded-xl border border-zinc-800" />
           </div>
@@ -50,19 +59,58 @@
           @click="predict()"
         >
           <span x-show="!loading">Predecir</span>
-          <span x-show="loading">Analizando...</span>
+          <span x-show="loading">Procesando...</span>
         </button>
 
         <button
-          class="mt-3 w-full rounded-xl border border-zinc-700 text-zinc-100 py-3"
+          class="mt-3 w-full rounded-xl border border-zinc-700 text-zinc-100 py-3 disabled:opacity-40"
           :disabled="loading"
           @click="clear()"
         >
           Limpiar
         </button>
 
+        <!-- ✅ Demo samples (clean UI) -->
+        <div class="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/30 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-zinc-200">Modo demo</p>
+              <p class="text-xs text-zinc-400">Carga un ejemplo con 1 click (sin subir archivos).</p>
+            </div>
 
-        <p class="text-xs text-zinc-400 mt-3">
+            <div class="flex items-center gap-2">
+              <!-- Dropdown -->
+              <select
+                class="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                x-model="demoChoice"
+                :disabled="loading"
+              >
+                <option value="" selected>Elegir ejemplo</option>
+                <option value="cat.jpg">🐱 Gato</option>
+                <option value="dog.jpg">🐶 Perro</option>
+                <option value="car.jpg">🚗 Auto</option>
+                <option value="truck.jpeg">🚚 Camión</option>
+                <option value="airplane.png">✈️ Avión</option>
+                <option value="ship.jpeg">🚢 Barco</option>
+              </select>
+
+              <!-- Load button -->
+              <button
+                class="rounded-lg bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 transition disabled:opacity-40"
+                :disabled="loading || !demoChoice"
+                @click="loadSample(demoChoice)"
+              >
+                Probar
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-3 text-xs text-zinc-400">
+            Tip: Usa “Modo demo” para capturas del README.
+          </div>
+        </div>
+
+        <p class="text-xs text-zinc-400 mt-4">
           Tip: este demo usa un modelo entrenado para CIFAR-10 (imágenes 32x32).
         </p>
       </section>
@@ -75,24 +123,26 @@
           <div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-red-200 text-sm" x-text="error"></div>
         </template>
 
-        <template x-if="predictions.length">
-          <div class="space-y-3">
-            <template x-for="p in predictions" :key="p.label">
-              <div class="rounded-xl border border-zinc-800 p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="font-medium" x-text="p.label"></span>
-                  <span class="text-sm text-zinc-300" x-text="(p.prob*100).toFixed(2) + '%'"></span>
-                </div>
-                <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div class="h-2 bg-emerald-400" :style="`width:${(p.prob*100).toFixed(2)}%`"></div>
-                </div>
-              </div>
-            </template>
-          </div>
-        </template>
+        <!-- Top-1 highlight -->
+        <div x-show="predictions.length" class="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+          <div class="text-xs uppercase tracking-wider text-zinc-400">Top prediction</div>
+          <div class="mt-1 text-2xl font-bold text-white" x-text="predictions?.[0]?.label || ''"></div>
+          <div class="mt-1 text-sm text-zinc-300" x-text="predictions?.[0] ? `${(predictions[0].prob*100).toFixed(2)}%` : ''"></div>
 
-        <template x-if="!predictions.length && !error">
-          <p class="text-zinc-400 text-sm">Aún no hay predicciones.</p>
+        </div>
+
+        <!-- List -->
+        <template x-for="p in predictions" :key="p.label">
+          <div class="rounded-xl border border-zinc-800 p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-medium" x-text="p.label"></span>
+              <span class="text-sm text-zinc-300" x-text="(p.prob*100).toFixed(2) + '%'"></span>
+            </div>
+            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div class="h-2 bg-emerald-400 transition-all duration-500"
+                  :style="`width:${(p.prob*100).toFixed(2)}%`"></div>
+            </div>
+          </div>
         </template>
       </section>
     </div>
@@ -101,5 +151,14 @@
       Hecho con FastAPI + Tailwind + Alpine.js.
     </footer>
   </div>
+
+  <!-- ✅ Demo state (simple) -->
+  <script>
+    // Alpine necesita que exista demoChoice en el state.
+    // Si no lo tienes en app.js, lo inicializamos aquí de forma segura.
+    document.addEventListener("alpine:init", () => {
+      // nada: classifierApp ya devuelve el state
+    });
+  </script>
 </body>
 </html>

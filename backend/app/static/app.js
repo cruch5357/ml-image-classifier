@@ -2,14 +2,48 @@ function classifierApp() {
   return {
     selectedFile: null,
     previewUrl: "",
-    predictions: [],
+    predictions: [], // siempre [{label, prob}]
     loading: false,
     error: "",
+    sample: "truck.jpeg", // default demo
 
+    // ---------- helpers ----------
+    _normalizePredictions(raw) {
+      // raw puede ser: [[label, prob], ...] o [{label, prob}, ...]
+      if (!Array.isArray(raw)) return [];
+
+      // caso 1: [[label, prob], ...]
+      if (Array.isArray(raw[0])) {
+        return raw
+          .map((p) => {
+            const label = String(p?.[0] ?? "");
+            const prob = Number(p?.[1]);
+            return { label, prob: Number.isFinite(prob) ? prob : 0 };
+          })
+          .filter((p) => p.label);
+      }
+
+      // caso 2: [{label, prob}, ...]
+      return raw
+        .map((p) => {
+          const label = String(p?.label ?? p?.class ?? "");
+          const prob = Number(p?.prob ?? p?.score);
+          return { label, prob: Number.isFinite(prob) ? prob : 0 };
+        })
+        .filter((p) => p.label);
+    },
+
+    _setPreview(file) {
+      if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+      this.previewUrl = URL.createObjectURL(file);
+    },
+
+    // ---------- file handling ----------
     pick(e) {
       const file = e.target.files?.[0];
       if (!file) return;
       this.setFile(file);
+      e.target.value = ""; // permite elegir el mismo archivo 2 veces
     },
 
     drop(e) {
@@ -26,9 +60,7 @@ function classifierApp() {
       this.error = "";
       this.predictions = [];
       this.selectedFile = file;
-
-      if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
-      this.previewUrl = URL.createObjectURL(file);
+      this._setPreview(file);
     },
 
     clear() {
@@ -37,8 +69,39 @@ function classifierApp() {
       this.error = "";
       if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
       this.previewUrl = "";
+      const inp = document.getElementById("fileInput");
+      if (inp) inp.value = "";
     },
 
+    // ---------- demo mode ----------
+    async loadSample(filename) {
+      this.error = "";
+      this.predictions = [];
+      this.loading = true;
+
+      try {
+        const url = `/static/samples/${filename}`;
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error("No se pudo cargar el sample.");
+
+        const blob = await res.blob();
+        const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+
+        this.setFile(file);
+      } catch (e) {
+        this.error = "No se pudo cargar el ejemplo.";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async demoRun() {
+      // carga sample seleccionado + predice
+      await this.loadSample(this.sample);
+      if (this.selectedFile) await this.predict();
+    },
+
+    // ---------- prediction ----------
     async predict() {
       if (!this.selectedFile) return;
 
@@ -51,13 +114,21 @@ function classifierApp() {
         fd.append("file", this.selectedFile);
 
         const res = await fetch("/api/predict", { method: "POST", body: fd });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
           this.error = data?.error || "Error al predecir.";
-        } else {
-          this.predictions = data.predictions || [];
+          return;
         }
+
+        const norm = this._normalizePredictions(data.predictions);
+        if (!norm.length) {
+          this.error = "Respuesta válida, pero sin predicciones.";
+          return;
+        }
+
+        // ordena desc
+        this.predictions = norm.sort((a, b) => b.prob - a.prob);
       } catch (err) {
         this.error = "No se pudo conectar con el servidor.";
       } finally {
