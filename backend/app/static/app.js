@@ -6,30 +6,42 @@ function classifierApp() {
     loading: false,
     error: "",
 
-    onPickFile(e) {
+    pick(e) {
       const file = e.target.files?.[0];
       if (!file) return;
       this.setFile(file);
     },
 
-    onDrop(e) {
+    drop(e) {
       const file = e.dataTransfer.files?.[0];
       if (!file) return;
       this.setFile(file);
     },
 
     setFile(file) {
-      if (!file.type.startsWith("image/")) {
-        this.error = "Por favor sube un archivo de imagen.";
+      if (!file.type || !file.type.startsWith("image/")) {
+        this.error = "Por favor sube una imagen (PNG/JPG/WEBP).";
         return;
       }
       this.error = "";
       this.predictions = [];
       this.selectedFile = file;
+
+      if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
       this.previewUrl = URL.createObjectURL(file);
     },
 
+    clear() {
+      this.selectedFile = null;
+      this.predictions = [];
+      this.error = "";
+      if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+      this.previewUrl = "";
+    },
+
     async predict() {
+      if (!this.selectedFile) return;
+
       this.loading = true;
       this.error = "";
       this.predictions = [];

@@ -87,7 +87,12 @@ def main():
 
         if acc > best_acc:
             best_acc = acc
-            torch.save(model.cpu(), MODELS_DIR / "model.pt")
+            ckpt = {
+                "num_classes": 10,
+                "state_dict": model.state_dict(),
+            }
+            torch.save(ckpt, MODELS_DIR / "model.pt")
+
             model = model.to(DEVICE)
             print("✅ Saved new best model -> models/model.pt")
 
