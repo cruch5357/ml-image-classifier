@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ML Image Classifier</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+  <div class="max-w-4xl mx-auto px-4 py-10" x-data="classifierApp()">
+    <header class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight">ML Image Classifier</h1>
+      <p class="text-zinc-300 mt-2">
+        Sube una imagen y obtén el Top-5 de predicciones (CIFAR-10).
+      </p>
+    </header>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- Upload -->
+      <section class="rounded-2xl bg-zinc-900/60 border border-zinc-800 p-5">
+        <h2 class="font-semibold mb-3">Subir imagen</h2>
+
+        <label class="block">
+          <input type="file" accept="image/*" class="hidden" @change="onPickFile($event)" />
+          <div
+            class="cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-6 text-center hover:border-zinc-500 transition"
+            @click="$el.previousElementSibling.click()"
+            @dragover.prevent
+            @drop.prevent="onDrop($event)"
+          >
+            <p class="text-zinc-200">Click o arrastra una imagen aquí</p>
+            <p class="text-xs text-zinc-400 mt-2">PNG / JPG / WEBP</p>
+          </div>
+        </label>
+
+        <template x-if="previewUrl">
+          <div class="mt-5">
+            <p class="text-sm text-zinc-400 mb-2">Preview</p>
+            <img :src="previewUrl" class="w-full rounded-xl border border-zinc-800" />
+          </div>
+        </template>
+
+        <button
+          class="mt-5 w-full rounded-xl bg-white text-zinc-900 font-semibold py-3 disabled:opacity-40"
+          :disabled="!selectedFile || loading"
+          @click="predict()"
+        >
+          <span x-show="!loading">Predecir</span>
+          <span x-show="loading">Analizando...</span>
+        </button>
+
+        <p class="text-xs text-zinc-400 mt-3">
+          Tip: este demo usa un modelo entrenado para CIFAR-10 (imágenes 32x32).
+        </p>
+      </section>
+
+      <!-- Results -->
+      <section class="rounded-2xl bg-zinc-900/60 border border-zinc-800 p-5">
+        <h2 class="font-semibold mb-3">Resultados</h2>
+
+        <template x-if="error">
+          <div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-red-200 text-sm" x-text="error"></div>
+        </template>
+
+        <template x-if="predictions.length">
+          <div class="space-y-3">
+            <template x-for="p in predictions" :key="p.label">
+              <div class="rounded-xl border border-zinc-800 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-medium" x-text="p.label"></span>
+                  <span class="text-sm text-zinc-300" x-text="(p.prob*100).toFixed(2) + '%'"></span>
+                </div>
+                <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div class="h-2 bg-emerald-400" :style="`width:${(p.prob*100).toFixed(2)}%`"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="!predictions.length && !error">
+          <p class="text-zinc-400 text-sm">Aún no hay predicciones.</p>
+        </template>
+      </section>
+    </div>
+
+    <footer class="mt-10 text-xs text-zinc-500">
+      Hecho con FastAPI + Tailwind + Alpine.js.
+    </footer>
+  </div>
+</body>
+</html>
