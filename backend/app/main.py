@@ -33,9 +33,25 @@ async def predict(file: UploadFile = File(...)):
 
     raw = await file.read()
     try:
-        img = Image.open(BytesIO(raw))
+        img = Image.open(BytesIO(raw)).convert("RGB")  # ✅ clave
     except Exception:
         return JSONResponse({"error": "Invalid image."}, status_code=400)
 
-    preds = predict_topk(img, k=5)
-    return {"predictions": [{"label": l, "prob": p} for l, p in preds]}
+    preds = predict_topk(img, k=5)  # List[Tuple[str,float]]
+
+    predictions = [{"label": lbl, "prob": float(p)} for (lbl, p) in preds]
+
+    # ✅ respuesta concreta (verdict) + umbral de confianza
+    threshold = 0.35
+    top1 = predictions[0] if predictions else None
+    verdict = None
+    if top1:
+        verdict = {
+            "label": top1["label"],
+            "prob": top1["prob"],
+            "is_confident": top1["prob"] >= threshold,
+            "threshold": threshold,
+        }
+
+    return {"predictions": predictions, "verdict": verdict}
+

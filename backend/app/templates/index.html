@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ML Image Classifier</title>
+
   <link rel="icon" href="/static/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- ✅ app.js primero para que Alpine encuentre classifierApp() al inicializar -->
+  <!-- app.js primero, luego Alpine -->
   <script src="/static/app.js"></script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -17,7 +18,7 @@
     <header class="mb-8">
       <h1 class="text-3xl font-bold tracking-tight">ML Image Classifier</h1>
       <p class="text-zinc-300 mt-2">
-        Sube una imagen y obtén el Top-5 de predicciones (CIFAR-10).
+        Clasificador de imágenes basado en CIFAR-10 (demo interactivo)
       </p>
     </header>
 
@@ -70,7 +71,7 @@
           Limpiar
         </button>
 
-        <!-- ✅ Demo samples (clean UI) -->
+        <!-- Demo samples (clean UI) -->
         <div class="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/30 p-4">
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -79,22 +80,17 @@
             </div>
 
             <div class="flex items-center gap-2">
-              <!-- Dropdown -->
               <select
                 class="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 x-model="demoChoice"
                 :disabled="loading"
               >
-                <option value="" selected>Elegir ejemplo</option>
-                <option value="cat.jpg">🐱 Gato</option>
-                <option value="dog.jpg">🐶 Perro</option>
+                <option value="" disabled selected>Elegir ejemplo</option>
+                <option value="dog.png">🐶 Perro</option>
                 <option value="car.jpg">🚗 Auto</option>
-                <option value="truck.jpeg">🚚 Camión</option>
                 <option value="airplane.png">✈️ Avión</option>
-                <option value="ship.jpeg">🚢 Barco</option>
               </select>
 
-              <!-- Load button -->
               <button
                 class="rounded-lg bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 transition disabled:opacity-40"
                 :disabled="loading || !demoChoice"
@@ -111,38 +107,86 @@
         </div>
 
         <p class="text-xs text-zinc-400 mt-4">
-          Tip: este demo usa un modelo entrenado para CIFAR-10 (imágenes 32x32).
+          El modelo fue entrenado con imágenes CIFAR-10 (32x32), por lo que funciona mejor con objetos centrados y fondo simple.
         </p>
       </section>
 
       <!-- Results -->
       <section class="rounded-2xl bg-zinc-900/60 border border-zinc-800 p-5">
-        <h2 class="font-semibold mb-3">Resultados</h2>
-
-        <template x-if="error">
-          <div class="rounded-xl border border-red-800 bg-red-950/40 p-4 text-red-200 text-sm" x-text="error"></div>
-        </template>
-
-        <!-- Top-1 highlight -->
-        <div x-show="predictions.length" class="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-          <div class="text-xs uppercase tracking-wider text-zinc-400">Top prediction</div>
-          <div class="mt-1 text-2xl font-bold text-white" x-text="predictions?.[0]?.label || ''"></div>
-          <div class="mt-1 text-sm text-zinc-300" x-text="predictions?.[0] ? `${(predictions[0].prob*100).toFixed(2)}%` : ''"></div>
-
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold">Resultados</h2>
+          <span class="text-xs text-zinc-400" x-show="verdict">
+            Umbral: <span class="font-semibold" x-text="verdict?.threshold"></span>
+          </span>
         </div>
 
-        <!-- List -->
-        <template x-for="p in predictions" :key="p.label">
-          <div class="rounded-xl border border-zinc-800 p-4">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-medium" x-text="p.label"></span>
-              <span class="text-sm text-zinc-300" x-text="(p.prob*100).toFixed(2) + '%'"></span>
-            </div>
-            <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-              <div class="h-2 bg-emerald-400 transition-all duration-500"
-                  :style="`width:${(p.prob*100).toFixed(2)}%`"></div>
-            </div>
+        <!-- Error -->
+        <template x-if="error">
+          <div class="mt-3 rounded-xl border border-red-800 bg-red-950/40 p-4 text-red-200 text-sm" x-text="error"></div>
+        </template>
+
+        <!-- Verdict (respuesta concreta) -->
+        <template x-if="verdict && !error">
+          <div class="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <div class="text-xs uppercase tracking-wider text-zinc-400">Respuesta</div>
+
+            <!-- Confidente -->
+            <template x-if="verdict.is_confident">
+              <div class="mt-1">
+                <div class="text-2xl font-bold text-white">
+                  Predicción: <span class="text-emerald-300" x-text="verdict.label"></span>
+                </div>
+                <div class="mt-1 text-sm text-zinc-300" x-text="`Confianza: ${(verdict.prob*100).toFixed(2)}%`"></div>
+              </div>
+            </template>
+
+            <!-- No confidente -->
+            <template x-if="!verdict.is_confident">
+              <div class="mt-1">
+                <div class="text-2xl font-bold text-white">
+                  No seguro 🤷‍♂️
+                </div>
+                <div class="mt-1 text-sm text-zinc-300">
+                  Mejor intento: <span class="font-semibold" x-text="verdict.label"></span>
+                  (<span x-text="`${(verdict.prob*100).toFixed(2)}%`"></span>)
+                </div>
+                <div class="mt-2 text-xs text-zinc-400">
+                  Sugerencia: usa imágenes simples, con el objeto al centro y poco fondo (más parecido a CIFAR-10).
+                </div>
+              </div>
+            </template>
           </div>
+        </template>
+
+        <!-- Lista Top-5 -->
+        <template x-if="predictions.length && !error">
+          <div class="mt-4 space-y-3">
+            <template x-for="p in predictions" :key="p.label">
+              <div class="rounded-xl border border-zinc-800 p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-medium" x-text="p.label"></span>
+                  <span class="text-sm text-zinc-300" x-text="(p.prob*100).toFixed(2) + '%'"></span>
+                </div>
+
+                <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    class="h-2 bg-emerald-400 transition-all duration-500"
+                    :style="`width:${Math.max(0, Math.min(100, p.prob*100)).toFixed(2)}%`"
+                  ></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- Empty state -->
+        <template x-if="!predictions.length && !error && !loading">
+          <p class="mt-4 text-zinc-400 text-sm">Aún no hay predicciones.</p>
+        </template>
+
+        <!-- Loading hint -->
+        <template x-if="loading && !error">
+          <p class="mt-4 text-zinc-400 text-sm">Analizando imagen…</p>
         </template>
       </section>
     </div>
@@ -151,14 +195,5 @@
       Hecho con FastAPI + Tailwind + Alpine.js.
     </footer>
   </div>
-
-  <!-- ✅ Demo state (simple) -->
-  <script>
-    // Alpine necesita que exista demoChoice en el state.
-    // Si no lo tienes en app.js, lo inicializamos aquí de forma segura.
-    document.addEventListener("alpine:init", () => {
-      // nada: classifierApp ya devuelve el state
-    });
-  </script>
 </body>
 </html>

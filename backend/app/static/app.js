@@ -1,11 +1,13 @@
 function classifierApp() {
   return {
+    verdict: null,
+    demoChoice: "",
     selectedFile: null,
     previewUrl: "",
     predictions: [], // siempre [{label, prob}]
     loading: false,
     error: "",
-    sample: "truck.jpeg", // default demo
+    sample: "dog.png", // default demo
 
     // ---------- helpers ----------
     _normalizePredictions(raw) {
@@ -71,6 +73,8 @@ function classifierApp() {
       this.previewUrl = "";
       const inp = document.getElementById("fileInput");
       if (inp) inp.value = "";
+      this.verdict = null;
+      this.demoChoice = "";
     },
 
     // ---------- demo mode ----------
@@ -128,7 +132,8 @@ function classifierApp() {
         }
 
         // ordena desc
-        this.predictions = norm.sort((a, b) => b.prob - a.prob);
+        this.predictions = data.predictions || [];
+        this.verdict = data.verdict || null;
       } catch (err) {
         this.error = "No se pudo conectar con el servidor.";
       } finally {

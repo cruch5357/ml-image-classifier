@@ -23,11 +23,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Preprocess compatible con CIFAR-10 (32x32)
 _preprocess = transforms.Compose([
-    transforms.Resize((32, 32)),
+    transforms.Resize(40),           # escala manteniendo aspecto
+    transforms.CenterCrop(32),       # recorte al centro 32x32
     transforms.ToTensor(),
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
 ])
-
 
 def _build_resnet18_cifar10(num_classes: int = 10) -> nn.Module:
     """
