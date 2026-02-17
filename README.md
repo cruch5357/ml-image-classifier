@@ -66,9 +66,13 @@ Es decir, aunque el demo usa CIFAR-10 por simplicidad académica, la tecnología
 ## 🖥️ Ejecución local
 
 git clone https://github.com/tuusuario/ml-image-classifier.git
+
 cd ml-image-classifier
+
 pip install -r requirements.txt
+
 uvicorn app.main:app --reload
+
 
 
 Abrir en navegador:
