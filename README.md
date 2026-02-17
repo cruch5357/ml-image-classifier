@@ -9,7 +9,6 @@ preprocesamiento → inferencia → API → interfaz web.
 ## 📸 Demostracion
 
 ![demo](./assets/demo.png)
-![demo1](./assets/demo1.png)
 
 
 ## 🎯 Objetivo del proyecto
