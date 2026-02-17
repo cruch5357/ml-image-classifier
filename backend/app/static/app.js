@@ -1,13 +1,12 @@
 function classifierApp() {
   return {
     verdict: null,
-    demoChoice: "",
+    demoChoice: "dog.png",
     selectedFile: null,
     previewUrl: "",
     predictions: [], // siempre [{label, prob}]
     loading: false,
     error: "",
-    sample: "dog.png", // default demo
 
     // ---------- helpers ----------
     _normalizePredictions(raw) {
